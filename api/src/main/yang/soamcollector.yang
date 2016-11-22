@@ -1,0 +1,29 @@
+module soamcollector {
+    yang-version 1;
+    namespace "urn:opendaylight:params:xml:ns:yang:soamcollector";
+    prefix "soamcollector";
+    
+    import ietf-inet-types {
+        prefix "inet";
+    }
+
+    revision "2015-01-05" {
+        description "Initial revision of soamcollector model";
+    }
+    
+    rpc get-history-stats {
+        input {
+            leaf ip-address {
+                type inet:ip-address;
+            }
+            leaf community {
+                type string;
+            }
+        }
+        output {
+            leaf results {
+                type string;
+            }
+        }
+    }
+}
