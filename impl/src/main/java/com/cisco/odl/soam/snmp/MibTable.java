@@ -8,6 +8,17 @@
 
 package com.cisco.odl.soam.snmp;
 
+import java.lang.reflect.Method;
+import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeoutException;
+
 import org.opendaylight.snmp.OID;
 import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ieee.types.rev080522.MacAddress;
 import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.inet.types.rev130715.Ipv4Address;
@@ -30,15 +41,6 @@ import org.snmp4j.smi.OctetString;
 import org.snmp4j.smi.TimeTicks;
 import org.snmp4j.smi.Variable;
 import org.snmp4j.smi.VariableBinding;
-
-import java.lang.reflect.Method;
-import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.Future;
 
 public class MibTable<T> {
     private static final Logger LOG = LoggerFactory.getLogger(MibTable.class);
@@ -113,8 +115,12 @@ public class MibTable<T> {
         List<VariableBinding> variableBindings;
         try {
             variableBindings = future.get();
-        } catch (Exception e) {
-            LOG.warn("VariableBinding Future", e);
+        } catch (Throwable e) {
+            if (e instanceof ExecutionException && e.getCause() instanceof TimeoutException) {
+                LOG.warn(e.getCause().getMessage());
+            } else {
+                LOG.warn("SNMP error", e);
+            }
             return;
         }
 
@@ -123,8 +129,8 @@ public class MibTable<T> {
 
         // Send the request for the oid
         Variable variable = null;
-        Class objectType = null;
-        for (int i=0; i<variableBindings.size(); i++) {
+        Class<?> objectType = null;
+        for (int i = 0; i < variableBindings.size(); i++) {
             VariableBinding variableBinding = variableBindings.get(i);
 
             try {
@@ -200,7 +206,8 @@ public class MibTable<T> {
 
                 T builderObject;
 
-                if (setObject == null) continue;
+                if (setObject == null)
+                    continue;
 
                 if (!indexToBuilderObject.containsKey(index)) {
                     builderObject = builderClass.newInstance();
@@ -211,7 +218,7 @@ public class MibTable<T> {
 
                 try {
                     method.invoke(builderObject, setObject);
-                }catch (Exception e) {
+                } catch (Exception e) {
                     LOG.debug(String.format("Error invoking %s with %s", method.getName(), setObject));
                 }
 

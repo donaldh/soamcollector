@@ -16,14 +16,18 @@ and is available at http://www.eclipse.org/legal/epl-v10.html
     odl:type="default" />
     
   <reference id="eventSourceRegistry"
-    interface="org.opendaylight.controller.messagebus.spi.EventSourceRegistry"
-    odl:type="default" />
+    interface="org.opendaylight.controller.messagebus.spi.EventSourceRegistry" />
     
+  <reference id="publishService"
+    interface="org.opendaylight.controller.md.sal.dom.api.DOMNotificationPublishService"
+    odl:type="default" />
+
   <bean id="soam-provider"
     class="com.cisco.odl.soam.impl.SoamProvider"
     init-method="init" destroy-method="close">
     <argument ref="dataBroker" />
     <argument ref="eventSourceRegistry" />
+    <argument ref="publishService" />
   </bean>
   
   <odl:rpc-implementation ref="soam-provider" />

@@ -135,7 +135,7 @@ public class AsyncGetHandler implements ResponseListener {
 
     private void setResult(Throwable e) {
         boolean success = (e == null);
-        LOG.info("Setting result, success=" + success);
+        LOG.debug("Setting result, success=" + success);
 
         SnmpGetOutputBuilder getOutputBuilder = new SnmpGetOutputBuilder().setResults(resultsArrayList);
 

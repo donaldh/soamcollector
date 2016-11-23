@@ -1,13 +1,17 @@
 module soamcollector {
     yang-version 1;
-    namespace "urn:opendaylight:params:xml:ns:yang:soamcollector";
-    prefix "soamcollector";
-    
+    namespace "urn:opendaylight:soamcollector";
+    prefix "soam";
+
     import ietf-inet-types {
         prefix "inet";
     }
 
-    revision "2015-01-05" {
+    import network-topology {
+        prefix "nt";
+    }
+
+    revision "2016-11-23" {
         description "Initial revision of soamcollector model";
     }
     
@@ -26,4 +30,20 @@ module soamcollector {
             }
         }
     }
+
+    grouping soamcollector-attrs {
+        leaf snmp-community {
+            type string;
+        }
+        leaf poll-interval {
+            description "Polling interval in seconds";
+            type uint32;
+            default 60;
+        }
+    }
+
+    augment "/nt:network-topology/nt:topology/nt:node" {
+        uses soamcollector-attrs;
+    }
+
 }

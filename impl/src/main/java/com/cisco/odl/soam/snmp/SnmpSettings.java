@@ -20,8 +20,8 @@ public class SnmpSettings {
     static final String DEFAULT_COMMUNITY = "public";
     static final Integer SNMP_LISTEN_PORT = 161;
     static final int RETRIES = 0;
-    static final int TIMEOUT = 10000;
-    static final int MAXREPETITIONS = 10000;
+    static final int TIMEOUT = 15000;
+    static final int MAXREPETITIONS = 1000;
 
     static Target getTargetForIp(Ipv4Address address, String community) {
         Address addr = null;

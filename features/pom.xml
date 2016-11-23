@@ -29,6 +29,7 @@ and is available at http://www.eclipse.org/legal/epl-v10.html INTERNAL
     <mdsal.model.version>0.9.1-Boron-SR1</mdsal.model.version>
     <mdsal.version>1.4.1-Boron-SR1</mdsal.version>
     <restconf.version>1.4.1-Boron-SR1</restconf.version>
+    <netconf.version>1.1.1-Boron-SR1</netconf.version>
     <yangtools.version>1.0.1-Boron-SR1</yangtools.version>
     <dlux.version>0.4.1-Boron-SR1</dlux.version>
     <configfile.directory>etc/opendaylight/karaf</configfile.directory>
@@ -48,6 +49,13 @@ and is available at http://www.eclipse.org/legal/epl-v10.html INTERNAL
         <groupId>org.opendaylight.netconf</groupId>
         <artifactId>restconf-artifacts</artifactId>
         <version>${restconf.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.opendaylight.netconf</groupId>
+        <artifactId>netconf-artifacts</artifactId>
+        <version>${netconf.version}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -90,6 +98,12 @@ and is available at http://www.eclipse.org/legal/epl-v10.html INTERNAL
       <classifier>features</classifier>
       <type>xml</type>
       <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.opendaylight.netconf</groupId>
+      <artifactId>features-netconf-connector</artifactId>
+      <type>xml</type>
+      <classifier>features</classifier>
     </dependency>
     <dependency>
       <groupId>org.opendaylight.dlux</groupId>
