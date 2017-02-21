@@ -9,6 +9,7 @@ package com.cisco.odl.soam.impl;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
@@ -18,6 +19,8 @@ import java.util.concurrent.TimeUnit;
 
 import org.opendaylight.controller.md.sal.binding.api.DataBroker;
 import org.opendaylight.controller.md.sal.dom.api.DOMNotificationPublishService;
+import org.opendaylight.controller.messagebus.spi.EventSource;
+import org.opendaylight.controller.messagebus.spi.EventSourceRegistration;
 import org.opendaylight.controller.messagebus.spi.EventSourceRegistry;
 import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.smiv2.mef.soam.pm.mib.rev120113.mefsoampmdmobjects.MefSoamDmHistoryStatsEntry;
 import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.smiv2.mef.soam.pm.mib.rev120113.mefsoampmdmobjects.MefSoamDmHistoryStatsEntryBuilder;
@@ -44,7 +47,17 @@ public class SoamProvider implements SoamcollectorService {
     private final ScheduledExecutorService scheduler;
     private Snmp snmp;
 
-    private List<SoamEventSource> eventSources = new ArrayList<>();
+    class EventSourceHandle {
+        final SoamEventSource eventSource;
+        final EventSourceRegistration<EventSource> registration;
+
+        EventSourceHandle(SoamEventSource source) {
+            eventSource = source;
+            registration = eventSourceRegistry.registerEventSource(eventSource);
+        }
+    }
+
+    private Map<String, EventSourceHandle> eventSources = new HashMap<>();
 
     public SoamProvider(final DataBroker dataBroker, final EventSourceRegistry eventSourceRegistry,
             final DOMNotificationPublishService publishService) throws IOException {
@@ -55,21 +68,33 @@ public class SoamProvider implements SoamcollectorService {
         snmp.listen();
     }
 
+    void addNode(String id, String address, String community, Long pollInterval) {
+        SoamEventSource eventSource = new SoamEventSource(publishService, snmp, address, community);
+        eventSources.put(id, new EventSourceHandle(eventSource));
+    }
+
+    void removeNode(String id) {
+        EventSourceHandle handle = eventSources.remove(id);
+        if (handle != null) {
+            handle.registration.close();
+        }
+    }
+
     /**
      * Method called when the blueprint container is created.
      */
     public void init() {
         LOG.info("SoamProvider Session Initiated");
-        // SoamEventSource eventSource = new SoamEventSource(publishService,
-        // snmp, "96.86.165.68");
-        // eventSources.add(eventSource);
-        // eventSourceRegistry.registerEventSource(eventSource);
         scheduler.scheduleAtFixedRate(new Runnable() {
 
             @Override
             public void run() {
-                for (SoamEventSource source : eventSources) {
-                    source.execute();
+                try {
+                    for (EventSourceHandle handle : eventSources.values()) {
+                        handle.eventSource.execute();
+                    }
+                } catch (Throwable e) {
+                    LOG.error(e.getClass().getName() + " : " + e.getLocalizedMessage());
                 }
             }
 

@@ -3,6 +3,8 @@ module soamcollector {
     namespace "urn:opendaylight:soamcollector";
     prefix "soam";
 
+    import yang-ext { prefix ext; }
+    
     import ietf-inet-types {
         prefix "inet";
     }
@@ -43,6 +45,7 @@ module soamcollector {
     }
 
     augment "/nt:network-topology/nt:topology/nt:node" {
+        ext:augment-identifier "soam-node";
         uses soamcollector-attrs;
     }
 

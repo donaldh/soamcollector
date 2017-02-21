@@ -19,6 +19,7 @@ import javax.xml.transform.dom.DOMSource;
 import org.opendaylight.controller.md.sal.dom.api.DOMNotificationPublishService;
 import org.opendaylight.controller.messagebus.app.util.TopicDOMNotification;
 import org.opendaylight.controller.messagebus.spi.EventSource;
+import org.opendaylight.snmp.OID;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.messagebus.eventaggregator.rev141202.TopicId;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.messagebus.eventaggregator.rev141202.TopicNotification;
 import org.opendaylight.yang.gen.v1.urn.cisco.params.xml.ns.yang.messagebus.eventsource.rev141202.DisJoinTopicInput;
@@ -30,8 +31,6 @@ import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.ietf.inet.types.
 import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.smiv2.mef.soam.pm.mib.rev120113.mefsoampmdmobjects.MefSoamDmHistoryStatsEntry;
 import org.opendaylight.yang.gen.v1.urn.ietf.params.xml.ns.yang.smiv2.mef.soam.pm.mib.rev120113.mefsoampmdmobjects.MefSoamDmHistoryStatsEntryBuilder;
 import org.opendaylight.yang.gen.v1.urn.tbd.params.xml.ns.yang.network.topology.rev131021.NodeId;
-import org.opendaylight.yang.gen.v1.urn.tbd.params.xml.ns.yang.network.topology.rev131021.network.topology.topology.Node;
-import org.opendaylight.yang.gen.v1.urn.tbd.params.xml.ns.yang.network.topology.rev131021.network.topology.topology.NodeBuilder;
 import org.opendaylight.yang.gen.v1.urn.tbd.params.xml.ns.yang.network.topology.rev131021.network.topology.topology.NodeKey;
 import org.opendaylight.yangtools.yang.common.QName;
 import org.opendaylight.yangtools.yang.common.RpcResult;
@@ -52,12 +51,12 @@ import com.cisco.odl.soam.snmp.MibTable;
 import com.google.common.base.Optional;
 
 public class SoamEventSource implements EventSource {
-	
+
 	private static final Logger LOG = LoggerFactory.getLogger(SoamEventSource.class);
     private final java.lang.String name = "soamcollector";
     private final java.lang.String namespace = "urn:opendaylight:params:xml:ns:yang:soamcollector";
     private final java.lang.String revision = "2015-01-05";
-    
+
     public static final String XMLNS_ATTRIBUTE_KEY = "xmlns";
     public static final String XMLNS_URI = "http://www.w3.org/2000/xmlns/";
 
@@ -68,28 +67,31 @@ public class SoamEventSource implements EventSource {
 
 	private final DOMNotificationPublishService publishService;
 	private final Snmp snmp;
-    
-	private final Node sourceNode;
+
+	private final String address;
+	private final String community;
+
+	private final NodeKey nodeKey;
 	private final List<SchemaPath> schemaPaths = new ArrayList<>();
 	private Set<TopicId> acceptedTopics = new HashSet<>();
-	
-	public SoamEventSource(DOMNotificationPublishService publishService, Snmp snmp, String nodeName) {
+
+	public SoamEventSource(DOMNotificationPublishService publishService, Snmp snmp, String address, String community) {
 		this.publishService = publishService;
 		this.snmp = snmp;
-		
-		NodeBuilder nb = new NodeBuilder();
-        nb.setKey(new NodeKey(new NodeId(nodeName)));
-        sourceNode = nb.build();
+		this.address = address;
+		this.community = community;
+
+        nodeKey = new NodeKey(new NodeId(address));
 		schemaPaths.add(SchemaPath.create(true, QName.create(namespace, revision, name)));
 	}
 
 	@Override
 	public Future<RpcResult<Void>> disJoinTopic(DisJoinTopicInput input) {
-		LOG.info("Node {} DisJoin topic {}", sourceNode.getNodeId().getValue(),
+		LOG.info("Node {} DisJoin topic {}", address,
 				input.getTopicId().getValue());
 		boolean removed = acceptedTopics.remove(input.getTopicId());
 		if (removed == false) {
-			LOG.warn("Node {} DisJoin topic {} - nothing to remove", sourceNode.getNodeId().getValue(),
+			LOG.warn("Node {} DisJoin topic {} - nothing to remove", address,
 					input.getTopicId().getValue());
 		}
 		return immediateFuture(RpcResultBuilder.success((Void) null).build());
@@ -97,7 +99,7 @@ public class SoamEventSource implements EventSource {
 
 	@Override
 	public Future<RpcResult<JoinTopicOutput>> joinTopic(JoinTopicInput input) {
-		LOG.info("Node {} Join topic {}", sourceNode.getNodeId().getValue(), input.getTopicId().getValue());
+		LOG.info("Node {} Join topic {}", address, input.getTopicId().getValue());
 		boolean added = acceptedTopics.add(input.getTopicId());
 		final JoinTopicOutput output = new JoinTopicOutputBuilder().setStatus(
 				added ? JoinTopicStatus.Up : JoinTopicStatus.Down).build();
@@ -112,34 +114,34 @@ public class SoamEventSource implements EventSource {
 
 	@Override
 	public NodeKey getSourceNodeKey() {
-		return sourceNode.getKey();
+	    return nodeKey;
 	}
 
 	@Override
 	public List<SchemaPath> getAvailableNotifications() {
 		return Collections.unmodifiableList(this.schemaPaths);
 	}
-	
+
 	public void execute() {
-		LOG.info("Executing poll cycle ...");
-		MibTable<MefSoamDmHistoryStatsEntryBuilder> historyTable = new MibTable<>(snmp,
-				new Ipv4Address(sourceNode.getNodeId().getValue()), "mef16cisco",
-				MefSoamDmHistoryStatsEntryBuilder.class);
+		LOG.info("Executing poll cycle for " + address + " ...");
+		MibTable<MefSoamDmHistoryStatsEntryBuilder> historyTable =
+		        new MibTable<>(snmp, new Ipv4Address(address), community,
+		                MefSoamDmHistoryStatsEntryBuilder.class);
 
 		Map<Integer, MefSoamDmHistoryStatsEntryBuilder> historyStatsBuilders = historyTable.populate();
 		LOG.info("Polled " + historyStatsBuilders.size() + " rows.");
-		
+
 		for (Integer index : historyStatsBuilders.keySet()) {
 			MefSoamDmHistoryStatsEntryBuilder entryBuilder = historyStatsBuilders.get(index);
-			AnyXmlNode any = encapsulate(entryBuilder.build());
-			
+			AnyXmlNode any = encapsulate(entryBuilder);
+
             final ContainerNode topicNotification = Builders.containerBuilder()
                     .withNodeIdentifier(TOPIC_NOTIFICATION_ARG)
-                    .withChild(ImmutableNodes.leafNode(TOPIC_ID_ARG, new TopicId(sourceNode.getNodeId().getValue())))
+                    .withChild(ImmutableNodes.leafNode(TOPIC_ID_ARG, new TopicId(address)))
                     .withChild(ImmutableNodes.leafNode(EVENT_SOURCE_ARG, "soamcollector"))
                     .withChild(any)
                     .build();
-			
+
 			try {
 				publishService.putNotification(new TopicDOMNotification(topicNotification));
 			} catch (InterruptedException e) {
@@ -147,8 +149,8 @@ public class SoamEventSource implements EventSource {
 			}
 		}
 	}
-	
-    private AnyXmlNode encapsulate(MefSoamDmHistoryStatsEntry statsEntry) {
+
+    private AnyXmlNode encapsulate(MefSoamDmHistoryStatsEntryBuilder statsEntry) {
 
         DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
         DocumentBuilder docBuilder;
@@ -165,7 +167,7 @@ public class SoamEventSource implements EventSource {
         final Element rootElement = createElement(doc , "payload", namespace);
 
         final Element sourceElement = doc.createElement("source");
-        sourceElement.appendChild(doc.createTextNode(sourceNode.getNodeId().getValue()));
+        sourceElement.appendChild(doc.createTextNode(address));
         rootElement.appendChild(sourceElement);
 
         final Element messageElement = doc.createElement("message");
@@ -176,25 +178,28 @@ public class SoamEventSource implements EventSource {
                      .withValue(new DOMSource(rootElement))
                      .build();
     }
-    
-    private Element toXml(Document doc, MefSoamDmHistoryStatsEntry entry) {
-    	final Element container = doc.createElement(entry.getClass().getName());
-    	
+
+    private Element toXml(Document doc, MefSoamDmHistoryStatsEntryBuilder entry) {
+    	final Element container = doc.createElement(entry.getClass().getSimpleName());
+
     	for (Method method : entry.getClass().getMethods()) {
-    		String name = method.getName();
-    		if (name.equals("getKey") == false && name.startsWith("get")) {
+    	    OID oid = method.getAnnotation(OID.class);
+    	    String name = method.getName();
+    		if (oid != null && name.startsWith("get")) {
     			try {
         			name = name.substring(3);
 					final Element item = doc.createElement(name);
 					final Object data = method.invoke(entry);
-					item.appendChild(doc.createTextNode(data.toString()));
-					container.appendChild(item);
+					if (data != null) {
+					    item.appendChild(doc.createTextNode(data.toString()));
+					    container.appendChild(item);
+					}
 				} catch (Throwable e) {
 					LOG.warn("Failed to add message data", e);
 				}
     		}
     	}
-    	
+
     	return container;
     }
 

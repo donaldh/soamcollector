@@ -21,7 +21,7 @@ and is available at http://www.eclipse.org/legal/epl-v10.html
   <reference id="publishService"
     interface="org.opendaylight.controller.md.sal.dom.api.DOMNotificationPublishService"
     odl:type="default" />
-
+    
   <bean id="soam-provider"
     class="com.cisco.odl.soam.impl.SoamProvider"
     init-method="init" destroy-method="close">
@@ -30,6 +30,12 @@ and is available at http://www.eclipse.org/legal/epl-v10.html
     <argument ref="publishService" />
   </bean>
   
+  <bean id="topo-listener"
+    class="com.cisco.odl.soam.impl.TopologyChangeListener">
+    <argument ref="dataBroker" />
+    <argument ref="soam-provider" />
+  </bean>
+
   <odl:rpc-implementation ref="soam-provider" />
 
 </blueprint>
