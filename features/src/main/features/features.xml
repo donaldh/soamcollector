@@ -27,7 +27,7 @@ and is available at http://www.eclipse.org/legal/epl-v10.html
     <feature version='${mdsal.version}'>odl-message-bus-collector</feature>
     <feature version='${netconf.version}'>odl-netconf-connector-ssh</feature>
     <feature version='${project.version}'>odl-soamcollector-api</feature>
-    <feature version='1.2.1-Boron-SR1'>odl-snmp-plugin</feature>
+    <feature version='1.2.2-Boron-SR2'>odl-snmp-plugin</feature>
     <bundle>mvn:com.cisco/soamcollector-impl/{{VERSION}}</bundle>
     <bundle>mvn:com.cisco/soam-model/{{VERSION}}</bundle>
   </feature>
